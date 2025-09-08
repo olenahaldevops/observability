@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/olenahaldevops/observability.git
-    path: observability/prometheus
+    path: prometheus
     helm:
       releaseName: prometheus
       valueFiles:

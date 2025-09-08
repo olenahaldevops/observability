@@ -8,14 +8,14 @@ spec:
     namespace: observability
     server: https://kubernetes.default.svc
   project: default
-source:
-  repoURL: https://grafana.github.io/helm-charts
-  chart: grafana
-  targetRevision: 8.3.5
-  helm:
-    releaseName: grafana
-    valueFiles:
-      - values.yaml
+  source:
+    repoURL: https://github.com/olenahaldevops/observability.git
+    targetRevision: main
+    path: grafana
+    helm:
+      releaseName: grafana
+      valueFiles:
+        - values.yaml 
   syncPolicy:
     automated:
       prune: true
