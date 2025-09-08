@@ -3,6 +3,10 @@ server:
     type: ClusterIP
   persistentVolume:
     enabled: false
+  extraScrapeConfigs: |
+    - job_name: 'otel-collector'
+      static_configs:
+        - targets: ['otel-collector-collector.observability.svc.cluster.local:8889']
 
 alertmanager:
   enabled: false
