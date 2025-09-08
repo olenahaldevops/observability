@@ -1,14 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: jaeger
+  name: jaeger-operator
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://github.com/olenahaldevops/observability.git
-    targetRevision: main
-    path: jaeger
+    repoURL: https://jaegertracing.github.io/helm-charts
+    chart: jaeger-operator
+    targetRevision: 2.52.0   # актуальную версию можно проверить: helm search repo jaeger-operator
+    helm:
+      releaseName: jaeger-operator
   destination:
     server: https://kubernetes.default.svc
     namespace: observability
