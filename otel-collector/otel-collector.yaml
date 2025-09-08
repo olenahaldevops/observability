@@ -15,8 +15,11 @@ spec:
 
     processors:
       batch: {}
-      spanmetrics:
-        metrics_exporter: prometheus
+      metricsgeneration:
+        dimensions:
+          - name: http.method
+          - name: http.status_code
+          - name: service.name
 
     exporters:
       prometheus:
@@ -25,15 +28,15 @@ spec:
         endpoint: simplest-collector.observability.svc.cluster.local:4317
         tls:
           insecure: true
+      debug: {}
 
     service:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch, spanmetrics]
-          exporters: [otlp/jaeger]
+          processors: [batch, metricsgeneration]
+          exporters: [otlp/jaeger, debug]
         metrics:
           receivers: [otlp]
           processors: [batch]
           exporters: [prometheus]
-
