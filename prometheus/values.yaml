@@ -1,12 +1,24 @@
-server:
-  service:
-    type: ClusterIP
-  persistentVolume:
+prometheus:
+  server:
+    service:
+      type: ClusterIP
+    persistentVolume:
+      enabled: false
+
+  serverFiles:
+    prometheus.yml:
+      global:
+        scrape_interval: 15s
+      scrape_configs:
+        - job_name: 'prometheus'
+          static_configs:
+            - targets: ['localhost:9090']
+        - job_name: 'otel-collector'
+          scrape_interval: 10s
+          static_configs:
+            - targets: ['otel-collector-collector.observability.svc.cluster.local:8889']
+
+  alertmanager:
     enabled: false
-  configMapOverrideName: prometheus-server-custom  
-
-alertmanager:
-  enabled: false
-
-pushgateway:
-  enabled: false
+  pushgateway:
+    enabled: false
