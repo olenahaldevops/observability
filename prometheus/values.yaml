@@ -4,11 +4,7 @@ server:
   persistentVolume:
     enabled: false
 
-  extraScrapeConfigs: |
-    - job_name: 'otel-collector'
-      scrape_interval: 10s
-      static_configs:
-        - targets: ['otel-collector-collector.observability.svc.cluster.local:8889']
+extraScrapeConfigsSecret: prometheus-extra-scrape-configs
 
 alertmanager:
   enabled: false
