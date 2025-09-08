@@ -4,6 +4,7 @@ metadata:
   name: otel-collector
   namespace: observability
 spec:
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.132.0
   mode: deployment
   config:
     receivers:
@@ -18,17 +19,21 @@ spec:
         metrics_exporter: prometheus
 
     exporters:
-      debug: {}
+      prometheus:
+        endpoint: "0.0.0.0:8889"
       otlp/jaeger:
         endpoint: simplest-collector.observability.svc.cluster.local:4317
         tls:
           insecure: true
-      prometheus:
-        endpoint: "0.0.0.0:8889"
 
     service:
       pipelines:
         traces:
           receivers: [otlp]
           processors: [batch, spanmetrics]
-          exporters: [otlp/jaeger, debug, prometheus]
+          exporters: [otlp/jaeger]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+
