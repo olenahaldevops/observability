@@ -12,6 +12,12 @@ spec:
         protocols:
           grpc: {}
           http: {}
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'hotrod'
+              static_configs:
+                - targets: ['hotrod:8080']    
 
     processors:
       batch: {}
@@ -35,3 +41,7 @@ spec:
           receivers: [otlp]
           processors: [batch]
           exporters: [prometheus]
+
+    telemetry:
+      metrics:
+        address: 0.0.0.0:8888      
