@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jaeger
+  namespace: argocd
+spec:
+  destination:
+    namespace: observability
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: https://github.com/your-org/observability.git
+    targetRevision: main
+    path: jaeger
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

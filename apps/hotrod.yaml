@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hotrod
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hotrod
+  template:
+    metadata:
+      labels:
+        app: hotrod
+    spec:
+      containers:
+      - name: hotrod
+        image: jaegertracing/example-hotrod:latest
+        args: ["all"]
+        ports:
+        - containerPort: 8080
+        env:
+        # Шлём трейсы в твой otel-collector
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector-collector.observability.svc.cluster.local:4318"
+        - name: OTEL_SERVICE_NAME
+          value: "hotrod"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotrod
+  namespace: observability
+spec:
+  selector:
+    app: hotrod
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
