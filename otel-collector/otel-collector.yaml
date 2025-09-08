@@ -12,7 +12,7 @@ spec:
         protocols:
           grpc: {}
           http: {}
-      prometheus:
+      prometheus/hotrod:
         config:
           scrape_configs:
             - job_name: 'hotrod'
@@ -24,7 +24,7 @@ spec:
       batch: {}
 
     exporters:
-      prometheus:
+      prometheus/export:
         endpoint: "0.0.0.0:8889"
       otlp/jaeger:
         endpoint: simplest-collector.observability.svc.cluster.local:4317
@@ -39,9 +39,9 @@ spec:
           processors: [batch]
           exporters: [otlp/jaeger, debug]
         metrics:
-          receivers: [otlp]
+          receivers: [prometheus/hotrod]
           processors: [batch]
-          exporters: [prometheus]
+          exporters: [prometheus/export, debug]
 
     telemetry:
       metrics:
