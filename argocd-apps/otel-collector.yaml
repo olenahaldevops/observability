@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    repoURL: https://github.com/your-org/observability.git
+    repoURL: https://github.com/olenahaldevops/observability.git
     targetRevision: main
     path: otel-collector
   syncPolicy:
