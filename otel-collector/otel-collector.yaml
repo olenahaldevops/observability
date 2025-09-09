@@ -127,20 +127,6 @@ spec:
       # Kubernetes cluster-level counts (nodes, pods, namespaces)
       k8s_cluster:
         collection_interval: 30s
-        add_metadata: true
-        resource_attributes:
-          cluster:
-            enabled: true
-          namespace:
-            enabled: true
-          node:
-            enabled: true
-          pod:
-            enabled: true
-          phase:
-            enabled: true
-          workload:
-            enabled: true
 
       # events (create/update/delete)
       k8s_events:
@@ -156,6 +142,8 @@ spec:
     exporters:
       prometheus/export:
         endpoint: "0.0.0.0:8889"
+        resource_to_telemetry_conversion:
+          enabled: true
       otlp/jaeger:
         endpoint: simplest-collector.observability.svc.cluster.local:4317
         tls:
