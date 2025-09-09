@@ -54,6 +54,12 @@ metadata:
 spec:
   serviceAccount: otel-collector
   image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.132.0
+  env:
+    - name: KUBELET_HOST
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+          
   mode: deployment
   config:
     receivers:
