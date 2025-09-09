@@ -127,6 +127,20 @@ spec:
       # Kubernetes cluster-level counts (nodes, pods, namespaces)
       k8s_cluster:
         collection_interval: 30s
+        add_metadata: true
+        resource_attributes:
+          cluster:
+            enabled: true
+          namespace:
+            enabled: true
+          node:
+            enabled: true
+          pod:
+            enabled: true
+          phase:
+            enabled: true
+          workload:
+            enabled: true
 
       # events (create/update/delete)
       k8s_events:
