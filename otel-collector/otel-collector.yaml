@@ -78,11 +78,13 @@ spec:
               static_configs:
                 - targets: ['0.0.0.0:8888']
 
-      # Kubernetes cluster-level metrics
+      # Kubernetes cluster-level counts (nodes, pods, namespaces)
       k8s_cluster:
         collection_interval: 30s
-      k8s_apiserver:
-        collection_interval: 30s
+
+      # events (create/update/delete)
+      k8s_events:
+        auth_type: serviceAccount
 
       # Node/pod/container metrics from kubelet
       kubeletstats:
@@ -121,7 +123,7 @@ spec:
           exporters: [otlp/jaeger, spanmetrics]
 
         metrics:
-          receivers: [prometheus/self, spanmetrics, k8s_cluster, k8s_apiserver, kubeletstats]
+          receivers: [prometheus/self, spanmetrics, k8s_cluster, k8s_events, kubeletstats]
           exporters: [prometheus/export, debug]
 
     telemetry:
