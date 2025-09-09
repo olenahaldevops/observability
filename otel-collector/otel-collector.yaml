@@ -81,7 +81,7 @@ spec:
       # Kubernetes cluster-level metrics
       k8s_cluster:
         collection_interval: 30s
-      k8sapiserver:
+      k8s_apiserver:
         collection_interval: 30s
 
       # Node/pod/container metrics from kubelet
@@ -121,7 +121,7 @@ spec:
           exporters: [otlp/jaeger, spanmetrics]
 
         metrics:
-          receivers: [prometheus/self, spanmetrics, k8s_cluster, k8sapiserver, kubeletstats]
+          receivers: [prometheus/self, spanmetrics, k8s_cluster, k8s_apiserver, kubeletstats]
           exporters: [prometheus/export, debug]
 
     telemetry:
