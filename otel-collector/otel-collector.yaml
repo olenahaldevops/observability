@@ -123,8 +123,12 @@ spec:
           exporters: [otlp/jaeger, spanmetrics]
 
         metrics:
-          receivers: [prometheus/self, spanmetrics, k8s_cluster, k8s_events, kubeletstats]
+          receivers: [prometheus/self, spanmetrics, k8s_cluster, kubeletstats]
           exporters: [prometheus/export, debug]
+
+        logs:
+          receivers: [k8s_events]
+          exporters: [debug]  
 
     telemetry:
       metrics:
