@@ -54,13 +54,13 @@ metadata:
 spec:
   serviceAccount: otel-collector
   image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.132.0
+  mode: deployment
   env:
     - name: KUBELET_HOST
       valueFrom:
         fieldRef:
           fieldPath: status.hostIP
-          
-  mode: deployment
+
   config:
     receivers:
       # Receive traces/metrics/logs from apps
@@ -79,7 +79,7 @@ spec:
                 - targets: ['0.0.0.0:8888']
 
       # Kubernetes cluster-level metrics
-      k8scluster:
+      k8s_cluster:
         collection_interval: 30s
       k8sapiserver:
         collection_interval: 30s
@@ -121,7 +121,7 @@ spec:
           exporters: [otlp/jaeger, spanmetrics]
 
         metrics:
-          receivers: [prometheus/self, spanmetrics, k8scluster, k8sapiserver, kubeletstats]
+          receivers: [prometheus/self, spanmetrics, k8s_cluster, k8sapiserver, kubeletstats]
           exporters: [prometheus/export, debug]
 
     telemetry:
