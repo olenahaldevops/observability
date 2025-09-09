@@ -1,17 +1,69 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/stats", "pods", "namespaces", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor", "/metrics/resource", "/stats", "/stats/summary"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector
+    namespace: observability
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector:
+    app.kubernetes.io/name: otel-collector
+  ports:
+    - name: prom-metrics
+      port: 8889
+      targetPort: 8889
+---
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
   name: otel-collector
   namespace: observability
 spec:
+  serviceAccount: otel-collector
   image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.132.0
   mode: deployment
   config:
     receivers:
+      # Receive traces/metrics/logs from apps
       otlp:
         protocols:
           grpc: {}
           http: {}
+
+      # Collector self-metrics
       prometheus/self:
         config:
           scrape_configs:
@@ -20,8 +72,18 @@ spec:
               static_configs:
                 - targets: ['0.0.0.0:8888']
 
-    processors:
-      batch: {}
+      # Kubernetes cluster-level metrics
+      k8scluster:
+        collection_interval: 30s
+      k8sapiserver:
+        collection_interval: 30s
+
+      # Node/pod/container metrics from kubelet
+      kubeletstats:
+        collection_interval: 30s
+        auth_type: serviceAccount
+        endpoint: "https://${KUBELET_HOST}:10250"
+        insecure_skip_verify: true
 
     exporters:
       prometheus/export:
@@ -50,12 +112,10 @@ spec:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch]
           exporters: [otlp/jaeger, spanmetrics]
 
         metrics:
-          receivers: [prometheus/self, spanmetrics]
-          processors: [batch]
+          receivers: [prometheus/self, spanmetrics, k8scluster, k8sapiserver, kubeletstats]
           exporters: [prometheus/export, debug]
 
     telemetry:
