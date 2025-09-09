@@ -8,13 +8,10 @@ spec:
   mode: deployment
   config:
     receivers:
-      # Accept traces/metrics/logs from apps
       otlp:
         protocols:
           grpc: {}
           http: {}
-
-      # Collector scrapes its own internal metrics (:8888)
       prometheus/self:
         config:
           scrape_configs:
@@ -27,17 +24,12 @@ spec:
       batch: {}
 
     exporters:
-      # Expose metrics to Prometheus
       prometheus/export:
         endpoint: "0.0.0.0:8889"
-
-      # Send traces to Jaeger collector
       otlp/jaeger:
         endpoint: simplest-collector.observability.svc.cluster.local:4317
         tls:
           insecure: true
-
-      # Debug logs
       debug: {}
 
     connectors:
@@ -59,10 +51,10 @@ spec:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlp/jaeger, spanmetrics, debug]
+          exporters: [otlp/jaeger, spanmetrics]
 
         metrics:
-          receivers: [spanmetrics, prometheus/self]
+          receivers: [prometheus/self, spanmetrics]
           processors: [batch]
           exporters: [prometheus/export, debug]
 
