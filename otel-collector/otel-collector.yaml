@@ -8,41 +8,64 @@ spec:
   mode: deployment
   config:
     receivers:
+      # Accept traces/metrics/logs from apps
       otlp:
         protocols:
           grpc: {}
           http: {}
-      prometheus/hotrod:
+
+      # Collector scrapes its own internal metrics (:8888)
+      prometheus/self:
         config:
           scrape_configs:
-            - job_name: 'hotrod'
+            - job_name: 'otel-collector'
               scrape_interval: 10s
               static_configs:
-                - targets: ['hotrod.observability.svc.cluster.local:8080']
+                - targets: ['0.0.0.0:8888']
 
     processors:
       batch: {}
 
     exporters:
+      # Expose metrics to Prometheus
       prometheus/export:
         endpoint: "0.0.0.0:8889"
+
+      # Send traces to Jaeger collector
       otlp/jaeger:
         endpoint: simplest-collector.observability.svc.cluster.local:4317
         tls:
           insecure: true
+
+      # Debug logs
       debug: {}
+
+    connectors:
+      spanmetrics:
+        histogram:
+          explicit:
+            buckets: [100us, 1ms, 2ms, 6ms, 10ms, 100ms, 250ms, 500ms, 1s, 2s, 6s, 10s]
+        dimensions:
+          - name: http.method
+          - name: http.status_code
+        exemplars:
+          enabled: true
+        aggregation_temporality: "AGGREGATION_TEMPORALITY_CUMULATIVE"
+        metrics_flush_interval: 15s
+        metrics_expiration: 5m
 
     service:
       pipelines:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlp/jaeger, debug]
+          exporters: [otlp/jaeger, spanmetrics, debug]
+
         metrics:
-          receivers: [prometheus/hotrod]
+          receivers: [spanmetrics, prometheus/self]
           processors: [batch]
           exporters: [prometheus/export, debug]
 
     telemetry:
       metrics:
-        address: 0.0.0.0:8888      
+        address: 0.0.0.0:8888
