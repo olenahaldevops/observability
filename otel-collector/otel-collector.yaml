@@ -124,7 +124,7 @@ spec:
               static_configs:
                 - targets: ['0.0.0.0:8888']
 
-      # Kubernetes cluster-level counts (nodes, pods, namespaces)
+      # Kubernetes cluster-level counts (nodes, pods, namespaces )
       k8s_cluster:
         collection_interval: 30s
 
