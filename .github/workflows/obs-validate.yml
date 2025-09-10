@@ -1,0 +1,50 @@
+name: Observability validation
+
+on:
+  push:
+    branches: [ "**" ]               # or: [ main, develop, 'feature/**' ]
+    paths:
+      - 'observability/**.yaml'
+      - 'argocd/**/*.yaml'
+  pull_request:
+    paths:
+      - 'observability/**.yaml'
+      - 'argocd/**/*.yaml'
+
+concurrency:
+  group: obs-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-otel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate OTel collector config (dry-run)
+        run: |
+          if [ -f observability/otel/collector.yaml ]; then
+            docker run --rm -v "$PWD/observability/otel:/cfg" \
+              otel/opentelemetry-collector-contrib:v0.132.0 \
+              --config=/cfg/collector.yaml --dry-run
+          else
+            echo "No OTel config found, skipping."
+          fi
+
+  validate-argocd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+          | tar -xz kubeconform && sudo mv kubeconform /usr/local/bin/
+      - name: Validate Argo CD manifests
+        run: |
+          if ls argocd/**/*.yaml >/dev/null 2>&1; then
+            kubeconform -strict -ignore-missing-schemas -summary argocd/**/*.yaml
+          else
+            echo "No Argo CD YAML found, skipping."
+          fi
