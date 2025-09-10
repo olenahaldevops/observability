@@ -77,54 +77,59 @@ jobs:
             $FILES
             
   helm-prometheus:
+    name: Helm chart validation (prometheus/)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-    
+
       - name: Install Helm + kubeconform
         run: |
           curl -L https://get.helm.sh/helm-v3.15.3-linux-amd64.tar.gz \
           | tar -xz && sudo mv linux-amd64/helm /usr/local/bin/helm
           curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
           | tar -xz kubeconform && sudo mv kubeconform /usr/local/bin/
-    
-      # 1) Add the repos your dependencies come from
+
       - name: Helm repos
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo add grafana https://grafana.github.io/helm-charts
           helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
           helm repo update
-    
-      # 2) Download chart dependencies into prometheus/charts/
+
       - name: Build chart dependencies
         run: |
           if [ -f prometheus/Chart.yaml ]; then
+            rm -f prometheus/Chart.lock
+            rm -rf prometheus/charts
             helm dependency build prometheus
+            echo "== Dependency list =="
+            helm dependency list prometheus || true
           else
-            echo "No Helm chart in prometheus/, skipping deps."
+            echo "No Helm chart in prometheus/ — skipping deps."
           fi
-    
-      # 3) Lint with subcharts
-      - name: Helm lint (prometheus/)
+
+      - name: Helm lint (with subcharts)
         run: |
           if [ -f prometheus/Chart.yaml ]; then
             helm lint prometheus --with-subcharts
           else
-            echo "No Helm chart in prometheus/, skipping lint."
+            echo "No Helm chart in prometheus/ — skipping lint."
           fi
-    
-      # 4) Render (auto-fetch deps if needed) and validate
-      - name: Render chart and validate
+
+      - name: Render chart and kube-validate
         run: |
           if [ -f prometheus/Chart.yaml ]; then
-            helm template prom prometheus \
-              -f prometheus/values.yaml \
-              --dependency-update > /tmp/prom-rendered.yaml
+            # include values.yaml if it exists
+            VALS_ARG=""
+            if [ -f prometheus/values.yaml ]; then
+              VALS_ARG="-f prometheus/values.yaml"
+            fi
+            helm template prom prometheus $VALS_ARG > /tmp/prom-rendered.yaml
+            # Validate rendered manifests (standard resources)
             kubeconform -strict -summary \
               --schema-location default \
               --schema-location "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{.NormalizedKubernetesVersion}}-standalone/{{.ResourceKind}}.json" \
               /tmp/prom-rendered.yaml
           else
-            echo "No Helm chart to render."
+            echo "No Helm chart in prometheus/ — skipping render/validate."
           fi
