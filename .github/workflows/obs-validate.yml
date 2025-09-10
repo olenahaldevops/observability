@@ -43,9 +43,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate OTel collector config (dry-run)
+      - name: Validate OTel collector config (validate subcommand)
         env:
-          OTELCOL_VERSION: "0.132.0"   # bump to 0.133.0 if you like
+          OTELCOL_VERSION: "0.132.0"   # you can bump to 0.133.0
         shell: bash
         run: |
           set -euo pipefail
@@ -56,11 +56,14 @@ jobs:
               IMG="ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:${OTELCOL_VERSION}"
               docker pull "$IMG"
             fi
+  
+            # validate instead of --dry-run
             docker run --rm -v "$PWD/otel-collector:/cfg" "$IMG" \
-              --config=/cfg/otel-collector.yaml --dry-run
+              validate --config=/cfg/otel-collector.yaml
           else
             echo "No OTel collector config found, skipping."
           fi
+
 
   kubeconform-manifests:
     runs-on: ubuntu-latest
