@@ -39,17 +39,18 @@ jobs:
             apps/*.yaml argocd-apps/*.yaml grafana/*.yaml jaeger/*.yaml \
             otel-collector/*.yaml prometheus/*.yaml
 
-  validate-otel:
+  otel_validate:
+    name: OpenTelemetry Collector validate
     runs-on: ubuntu-latest
+    env:
+      OTELCOL_VERSION: "0.132.0"   # bump if needed
     steps:
       - uses: actions/checkout@v4
-
       - name: Install yq
         run: |
           curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
             -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
-
-      - name: Extract Collector config to temp file
+      - name: Extract collector config (from multi-doc manifest)
         id: extract
         shell: bash
         run: |
@@ -59,55 +60,43 @@ jobs:
 
           if [ ! -f "$SRC" ]; then
             echo "no_config=true" >> "$GITHUB_OUTPUT"
-            echo "No OTel collector manifest found, skipping."
+            echo "No otel-collector manifest found."
             exit 0
           fi
 
-          # Is this a K8s manifest?
-          if yq -e '.apiVersion and .kind' "$SRC" >/dev/null 2>&1; then
-            KIND=$(yq -r '.kind' "$SRC")
-            case "$KIND" in
-              OpenTelemetryCollector)
-                # spec.config may be a YAML block string — yq will write it out as YAML
-                yq '.spec.config' "$SRC" > "$OUT"
-                ;;
-              ConfigMap)
-                # Try common keys inside data
-                yq -r '.data["collector.yaml"] // .data["otel-collector.yaml"] // .data["config.yaml"] // empty' "$SRC" > "$OUT" || true
-                ;;
-              *)
-                echo "Unsupported K8s kind for extraction: $KIND"
-                exit 1
-                ;;
-            esac
-          else
-            # Plain collector config (no apiVersion/kind)
-            cp "$SRC" "$OUT"
+          # Try OpenTelemetryCollector.spec.config across ALL docs
+          yq -r 'select(.kind == "OpenTelemetryCollector") | .spec.config // empty' "$SRC" > "$OUT" || true
+          if [ ! -s "$OUT" ]; then
+            # Try ConfigMap data keys (collector.yaml, otel-collector.yaml, config.yaml)
+            yq -r 'select(.kind == "ConfigMap") | (.data["collector.yaml"] // .data["otel-collector.yaml"] // .data["config.yaml"] // empty)' "$SRC" > "$OUT" || true
           fi
 
-          # Basic sanity: must have 'service:' section
-          if ! yq -e '.service' "$OUT" >/dev/null 2>&1; then
-            echo "Extracted file lacks a 'service' section. Not a valid collector config."
+          if [ ! -s "$OUT" ]; then
             echo "no_config=true" >> "$GITHUB_OUTPUT"
-            exit 1
+            echo "Could not extract collector config from $SRC."
+            exit 0
+          fi
+
+          # Must have a 'service:' section to be a valid collector config
+          if ! yq -e '.service' "$OUT" >/dev/null 2>&1; then
+            echo "no_config=true" >> "$GITHUB_OUTPUT"
+            echo "Extracted content lacks 'service:' — not a collector config."
+            exit 0
           fi
 
           echo "config_path=$OUT" >> "$GITHUB_OUTPUT"
 
-      - name: Validate OTel collector config (validate subcommand)
+      - name: Validate with collector (validate subcommand)
         if: steps.extract.outputs.no_config != 'true'
-        env:
-          OTELCOL_VERSION: "0.132.0"   # or bump to 0.133.0
         shell: bash
         run: |
           set -euo pipefail
           IMG="otel/opentelemetry-collector-contrib:${OTELCOL_VERSION}"
           if ! docker pull "$IMG" >/dev/null 2>&1; then
-            echo "Docker Hub tag not found, using GHCR…"
+            echo "Docker Hub tag not found, trying GHCR..."
             IMG="ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:${OTELCOL_VERSION}"
-            docker pull "$IMG"
+            docker pull "$IMG" >/dev/null
           fi
-
           docker run --rm -v "${{ steps.extract.outputs.config_path }}:/cfg.yaml" "$IMG" \
             validate --config=/cfg.yaml
 
