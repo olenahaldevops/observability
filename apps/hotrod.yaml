@@ -20,7 +20,7 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        # Шлём трейсы в твой otel-collector
+        # => otel-collector
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://otel-collector-collector.observability.svc.cluster.local:4318"
         - name: OTEL_SERVICE_NAME
