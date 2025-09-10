@@ -44,10 +44,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate OTel collector config (dry-run)
+        env:
+          OTELCOL_VERSION: "0.132.0"   # bump to 0.133.0 if you like
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -f otel-collector/otel-collector.yaml ]; then
-            docker run --rm -v "$PWD/otel-collector:/cfg" \
-              otel/opentelemetry-collector-contrib:v0.132.0 \
+            IMG="otel/opentelemetry-collector-contrib:${OTELCOL_VERSION}"
+            if ! docker pull "$IMG" >/dev/null 2>&1; then
+              echo "Docker Hub tag not found, using GHCR..."
+              IMG="ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:${OTELCOL_VERSION}"
+              docker pull "$IMG"
+            fi
+            docker run --rm -v "$PWD/otel-collector:/cfg" "$IMG" \
               --config=/cfg/otel-collector.yaml --dry-run
           else
             echo "No OTel collector config found, skipping."
