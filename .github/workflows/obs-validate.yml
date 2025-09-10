@@ -9,7 +9,7 @@ on:
       - 'grafana/*.yaml'
       - 'jaeger/*.yaml'
       - 'otel-collector/*.yaml'
-      - 'prometheus/**/*.yaml'
+      - 'prometheus/*.yaml'
   pull_request:
     paths:
       - 'apps/*.yaml'
@@ -17,7 +17,7 @@ on:
       - 'grafana/*.yaml'
       - 'jaeger/*.yaml'
       - 'otel-collector/*.yaml'
-      - 'prometheus/**/*.yaml'
+      - 'prometheus/*.yaml'
 
 concurrency:
   group: obs-validate-${{ github.ref }}
@@ -37,7 +37,7 @@ jobs:
         run: |
           yamllint -s \
             apps/*.yaml argocd-apps/*.yaml grafana/*.yaml jaeger/*.yaml \
-            otel-collector/*.yaml prometheus/**/*.yaml
+            otel-collector/*.yaml prometheus/*.yaml
 
   validate-otel:
     runs-on: ubuntu-latest
