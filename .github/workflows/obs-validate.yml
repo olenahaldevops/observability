@@ -2,14 +2,26 @@ name: Observability validation
 
 on:
   push:
-    branches: [ "**" ]               # or: [ main, develop, 'feature/**' ]
+    branches: ["**"]
     paths:
-      - 'observability/**.yaml'
-      - 'argocd/**/*.yaml'
+      - 'apps/*.yaml'
+      - 'argocd-apps/*.yaml'
+      - 'grafana/*.yaml'
+      - 'jaeger/*.yaml'
+      - 'otel-collector/*.yaml'
+      - 'prometheus/**/*.yaml'
+    paths-ignore:
+      - '.github/workflows/**'    
   pull_request:
     paths:
-      - 'observability/**.yaml'
-      - 'argocd/**/*.yaml'
+      - 'apps/*.yaml'
+      - 'argocd-apps/*.yaml'
+      - 'grafana/*.yaml'
+      - 'jaeger/*.yaml'
+      - 'otel-collector/*.yaml'
+      - 'prometheus/**/*.yaml'
+    paths-ignore:
+      - '.github/workflows/**'  
 
 concurrency:
   group: obs-validate-${{ github.ref }}
@@ -19,21 +31,33 @@ permissions:
   contents: read
 
 jobs:
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: sudo apt-get update && sudo apt-get install -y yamllint
+      - name: Lint YAML
+        run: |
+          yamllint -s \
+            apps/*.yaml argocd-apps/*.yaml grafana/*.yaml jaeger/*.yaml \
+            otel-collector/*.yaml prometheus/**/*.yaml
+
   validate-otel:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Validate OTel collector config (dry-run)
         run: |
-          if [ -f observability/otel/collector.yaml ]; then
-            docker run --rm -v "$PWD/observability/otel:/cfg" \
+          if [ -f otel-collector/otel-collector.yaml ]; then
+            docker run --rm -v "$PWD/otel-collector:/cfg" \
               otel/opentelemetry-collector-contrib:v0.132.0 \
-              --config=/cfg/collector.yaml --dry-run
+              --config=/cfg/otel-collector.yaml --dry-run
           else
-            echo "No OTel config found, skipping."
+            echo "No OTel collector config found, skipping."
           fi
 
-  validate-argocd:
+  kubeconform-manifests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +65,46 @@ jobs:
         run: |
           curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
           | tar -xz kubeconform && sudo mv kubeconform /usr/local/bin/
-      - name: Validate Argo CD manifests
+      - name: Validate K8s manifests (apps + argocd-apps + jaeger)
         run: |
-          if ls argocd/**/*.yaml >/dev/null 2>&1; then
-            kubeconform -strict -ignore-missing-schemas -summary argocd/**/*.yaml
+          set -e
+          FILES=$(ls apps/*.yaml argocd-apps/*.yaml jaeger/*.yaml 2>/dev/null || true)
+          if [ -z "$FILES" ]; then
+            echo "No Kubernetes manifests to validate."
+            exit 0
+          fi
+          kubeconform \
+            -strict -summary \
+            --schema-location default \
+            --schema-location "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{.NormalizedKubernetesVersion}}-standalone/{{.ResourceKind}}.json" \
+            --schema-location "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+            $FILES
+
+  helm-prometheus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Helm + kubeconform
+        run: |
+          curl -L https://get.helm.sh/helm-v3.15.3-linux-amd64.tar.gz \
+          | tar -xz && sudo mv linux-amd64/helm /usr/local/bin/helm
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+          | tar -xz kubeconform && sudo mv kubeconform /usr/local/bin/
+      - name: Helm lint (prometheus/)
+        run: |
+          if [ -f prometheus/Chart.yaml ]; then
+            helm lint prometheus
           else
-            echo "No Argo CD YAML found, skipping."
+            echo "No Helm chart in prometheus/, skipping lint."
+          fi
+      - name: Render chart and validate
+        run: |
+          if [ -f prometheus/Chart.yaml ]; then
+            helm template prom prometheus -f prometheus/values.yaml > /tmp/prom-rendered.yaml
+            kubeconform -strict -summary \
+              --schema-location default \
+              --schema-location "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{.NormalizedKubernetesVersion}}-standalone/{{.ResourceKind}}.json" \
+              /tmp/prom-rendered.yaml
+          else
+            echo "No Helm chart to render."
           fi
